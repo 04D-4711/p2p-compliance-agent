@@ -8,7 +8,8 @@
 ## 快速开始
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+.venv\Scripts\Activate.ps1            # Windows PowerShell；macOS/Linux：source .venv/bin/activate
 pip install -r requirements.txt
 
 python -m p2p.cli init                 # 生成 data/p2p.db 与 data/labels.csv
@@ -16,7 +17,7 @@ streamlit run app.py                   # 打开界面（首次启动若无数据
 
 python -m p2p.cli scan --sync          # 命令行巡检并写入看板
 python -m p2p.cli eval                 # 评估，输出 reports/eval_report.md
-python -m pytest                       # 25 个测试（含界面冒烟测试、假 CLI 的研判器测试）
+python -m pytest                       # 25 个测试（Windows 上跳过 4 个假 CLI 测试）
 ```
 
 ### 研判器

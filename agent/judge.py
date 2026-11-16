@@ -98,7 +98,9 @@ class ClaudeCodeJudge:
         self.model = model or os.getenv("P2P_CC_MODEL") or None
         self.cli = cli or os.getenv("P2P_CLAUDE_CLI", "claude")
         self.timeout = timeout
-        if not shutil.which(self.cli):
+        # 用完整路径：Windows 上 npm 安装的是 claude.cmd，只写 "claude" 时 subprocess 找不到
+        self.path = shutil.which(self.cli)
+        if not self.path:
             raise FileNotFoundError(f"找不到 Claude Code 命令行：{self.cli}")
 
     @property
@@ -107,11 +109,12 @@ class ClaudeCodeJudge:
 
     def judge(self, hit, ctx, evidence):
         prompt = SYSTEM + "\n\n" + build_prompt(hit, ctx, evidence)
-        cmd = [self.cli, "-p", "--output-format", "json"]
+        cmd = [self.path, "-p", "--output-format", "json"]
         if self.model:
             cmd += ["--model", self.model]
         try:
-            proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=self.timeout)
+            proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8",
+                                  errors="replace", timeout=self.timeout)
             if proc.returncode != 0:
                 raise RuntimeError(proc.stderr.strip() or f"exit {proc.returncode}")
             out = proc.stdout.strip()

@@ -50,6 +50,9 @@ import stat
 from agent.judge import ClaudeCodeJudge, get_judge
 
 
+posix_only = pytest.mark.skipif(os.name == "nt", reason="假 CLI 用 shebang 脚本，仅在 macOS/Linux 上运行")
+
+
 def _fake_cli(tmp_path, body):
     p = tmp_path / "claude"
     p.write_text("#!/usr/bin/env python3\nimport sys, json\nprompt = sys.stdin.read()\nargs = sys.argv[1:]\n" + body)
@@ -57,6 +60,7 @@ def _fake_cli(tmp_path, body):
     return str(p)
 
 
+@posix_only
 def test_claude_code_judge_parses_wrapper(tmp_path):
     cli = _fake_cli(tmp_path, '''
 assert args[:3] == ["-p", "--output-format", "json"] and "--model" in args
@@ -70,6 +74,7 @@ print(json.dumps({"type": "result", "is_error": False, "result": "```json\\n" + 
     assert out["verdict"] == "违规" and out["cited"] == ["P-02"] and out["confidence"] == 0.88
 
 
+@posix_only
 def test_claude_code_judge_error_goes_to_human(tmp_path):
     cli = _fake_cli(tmp_path, 'print(json.dumps({"type":"result","is_error":True,"result":"usage limit"}))')
     out = ClaudeCodeJudge(cli=cli).judge(HIT, CTX, EV)
@@ -83,12 +88,14 @@ def test_missing_cli_raises():
         ClaudeCodeJudge(cli="definitely-not-a-cli-xyz")
 
 
+@posix_only
 def test_get_judge_specs(tmp_path, monkeypatch):
     monkeypatch.setenv("P2P_CLAUDE_CLI", _fake_cli(tmp_path, "print('{}')"))
     assert get_judge("claude-code:opus").name == "claude-code:opus"
     assert get_judge("heuristic").name == "heuristic"
 
 
+@posix_only
 def test_judge_eval_end_to_end(tmp_path, monkeypatch):
     """研判器对比流程：假 CLI 对“金额等于权限上限”判不违规，应比启发式基线精确率更高。"""
     from evaluation import judge_eval
