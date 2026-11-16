@@ -10,10 +10,11 @@
 ```bash
 python -m venv .venv
 .venv\Scripts\Activate.ps1            # Windows PowerShell；macOS/Linux：source .venv/bin/activate
-pip install -r requirements.txt
+$env:PYTHONUTF8 = "1"                  # Windows：让 Python 默认用 UTF-8（每个新终端设置一次）
+python -m pip install -r requirements.txt
 
 python -m p2p.cli init                 # 生成 data/p2p.db 与 data/labels.csv
-streamlit run app.py                   # 打开界面（首次启动若无数据库会自动生成）
+python -m streamlit run app.py         # 打开界面（首次启动若无数据库会自动生成）
 
 python -m p2p.cli scan --sync          # 命令行巡检并写入看板
 python -m p2p.cli eval                 # 评估，输出 reports/eval_report.md
