@@ -16,16 +16,27 @@ streamlit run app.py                   # 打开界面（首次启动若无数据
 
 python -m p2p.cli scan --sync          # 命令行巡检并写入看板
 python -m p2p.cli eval                 # 评估，输出 reports/eval_report.md
-python -m pytest                       # 20 个测试（含 Streamlit 界面冒烟测试）
+python -m pytest                       # 25 个测试（含界面冒烟测试、假 CLI 的研判器测试）
 ```
 
-使用 Claude 做研判需要配置 API Key，否则自动使用离线启发式研判：
+### 研判器
+
+| 研判器 | 写法 | 说明 |
+|---|---|---|
+| 启发式 | `heuristic` | 离线兜底，所有命中都判“违规”，按特征给置信度 |
+| Claude Code | `claude-code`、`claude-code:sonnet`、`claude-code:opus` | 调用本机 `claude -p`，使用已登录的订阅账户，无需 API Key |
+| API | `api`、`api:claude-opus-5-5` | 需要 `ANTHROPIC_API_KEY`，按量计费；默认模型可用 `P2P_LLM_MODEL` 设置 |
+| 自动 | `auto` | 有 API Key 时走 API，否则用启发式 |
 
 ```bash
-export ANTHROPIC_API_KEY=sk-...
-export P2P_LLM_MODEL=claude-sonnet-5-5   # 可选
-python -m p2p.cli scan --judge claude
+# 先只跑一两条规则试一下（每条命中调用一次模型）
+python -m p2p.cli scan --judge claude-code:sonnet --rules R2_AUTH
+
+# 研判器对比：在 v1 命中（含大量误报）里分层抽 40 条，比较各研判器能否筛掉误报
+python -m p2p.cli judge-eval --judges heuristic claude-code:sonnet claude-code:opus --limit 40
 ```
+
+`judge-eval` 输出一致率、“违规”精确率和召回率、不确定率、引用证据外条款比例、失败率、自动确认精确率和平均耗时，结果写入 `reports/judge_eval_<时间>.md`，逐条明细写入同名 `.jsonl`。LLM 调用失败（超时、额度用尽、回复无法解析）一律判“不确定”并转人工，不会自动放行。
 
 ## 目录
 
@@ -39,9 +50,10 @@ p2p/
   cli.py         命令行
 agent/
   retriever.py   制度条款检索（中文字二元组 + BM25）
-  judge.py       ClaudeJudge（Anthropic API）/ HeuristicJudge（离线兜底）
+  judge.py       ClaudeCodeJudge（claude -p）/ ClaudeJudge（API）/ HeuristicJudge（离线兜底）
   pipeline.py    初筛 → 取证 → 研判 → 人审路由
 evaluation/evaluate.py   v1 / v2 精确率、召回率，误报来源，路由分布
+evaluation/judge_eval.py 研判器对比（启发式 / Claude Code / API）
 policies/p2p_policy.md   示例制度条款 P-01 ~ P-12
 docs/user_stories.md     8 个用户故事与验收标准
 app.py                   Streamlit 界面
@@ -88,10 +100,10 @@ v2 漏报的 5 条是有意放入的难例，当前规则覆盖不到：
 
 1. 由他人或真实/脱敏业务数据构造独立的留出集；
 2. 规则迭代只使用开发集，留出集只在最后测一次；
-3. 使用 `--judge claude` 时，单独统计 LLM 研判的一致率和误判。
+3. 用 `judge-eval` 单独统计 LLM 研判的一致率和误判。
 
 ## 后续可做
 
 - v3 规则：用累计发票口径（覆盖 R5 难例）、滑动窗口链式拆单（覆盖 R3 难例）、发票号编辑距离加金额容差（覆盖 R4 难例）
-- 在独立留出集上重新评估，对比启发式研判和 Claude 研判
+- 在独立留出集上重新评估，对比启发式研判和 Claude 研判（`judge-eval`）
 - 预付款例外：关联合同，满足 P-12 时不命中 R6

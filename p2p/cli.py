@@ -11,13 +11,18 @@ def main():
     sub.add_parser("init", help="重置数据库并生成合成数据")
     s = sub.add_parser("scan", help="运行巡检 Agent")
     s.add_argument("--version", default="v2", choices=["v1", "v2"])
-    s.add_argument("--judge", default="auto", choices=["auto", "heuristic", "claude"])
+    s.add_argument("--judge", default="auto",
+                   help="auto | heuristic | claude-code[:sonnet|opus|haiku] | api[:模型名]")
+    s.add_argument("--rules", nargs="*", help="只跑指定规则，如 R2_AUTH R5_3WAY")
     s.add_argument("--sync", action="store_true", help="结果写入风险看板")
     sub.add_parser("cases", help="列出案件")
     e = sub.add_parser("export", help="导出证据包")
     e.add_argument("case_id", type=int)
     sub.add_parser("eval", help="运行评估并写 reports/eval_report.md")
-    a = ap.parse_args()
+    sub.add_parser("judge-eval", help="研判器对比，参数同 python -m evaluation.judge_eval")
+    a, extra = ap.parse_known_args()
+    if extra and a.cmd != "judge-eval":
+        ap.error(f"unrecognized arguments: {' '.join(extra)}")
 
     if a.cmd == "init":
         _, labels = seed.reset_and_build()
@@ -25,7 +30,7 @@ def main():
     elif a.cmd == "scan":
         from agent import pipeline
         conn = db.connect()
-        res = pipeline.run(conn, a.version, a.judge)
+        res = pipeline.run(conn, a.version, a.judge, a.rules or None)
         for r in res:
             print(f"{r['rule']:<10} {r['entity_id']:<8} {r['amount']:>12,.2f}  {r['route']:<5} "
                   f"conf={r['confidence']:.2f} cited={','.join(r['cited'])}  {r['detail']}")
@@ -40,6 +45,9 @@ def main():
     elif a.cmd == "export":
         cases.evidence_pack(db.connect(), a.case_id)
         print(config.EXPORT_DIR / f"case_{a.case_id}_evidence.zip")
+    elif a.cmd == "judge-eval":
+        from evaluation import judge_eval
+        judge_eval.main(extra)
     elif a.cmd == "eval":
         from evaluation.evaluate import evaluate, to_markdown
         md = to_markdown(evaluate())

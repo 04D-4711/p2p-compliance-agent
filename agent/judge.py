@@ -1,11 +1,14 @@
 """研判器：给定规则命中、单据链特征与检索到的条款，输出 {verdict, confidence, cited, reasoning}。
 
 - ClaudeJudge：调用 Anthropic API（需要 ANTHROPIC_API_KEY）。
+- ClaudeCodeJudge：调用本机 Claude Code CLI（claude -p），使用已登录的订阅账户。
 - HeuristicJudge：离线启发式研判，无 API Key 时的兜底，便于本地演示和测试。
 """
 import json
 import os
 import re
+import shutil
+import subprocess
 
 from p2p.rules import RULES
 
@@ -40,40 +43,103 @@ class HeuristicJudge:
         return {"verdict": "违规", "confidence": conf, "cited": cited, "reasoning": reasoning, "judge": self.name}
 
 
+def build_prompt(hit, ctx, evidence):
+    ev = "\n".join(f"[{e['id']}] {e['title']}：{e['text']}" for e in evidence)
+    return (f"规则：{hit['rule']}（{RULES[hit['rule']]['name']}）\n命中说明：{hit['detail']}\n"
+            f"涉及金额：{hit['amount']}\n单据链：{json.dumps(ctx['chain'], ensure_ascii=False)}\n"
+            f"特征：{json.dumps(ctx.get('features', {}), ensure_ascii=False)}\n\n检索到的制度条款：\n{ev}")
+
+
+def parse_reply(text, judge_name):
+    """从模型回复中取出 JSON；任何解析问题都抛异常，由调用方兜底。"""
+    data = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
+    verdict = data.get("verdict", "不确定")
+    if verdict not in ("违规", "不违规", "不确定"):
+        verdict = "不确定"
+    return {"verdict": verdict, "confidence": max(0.0, min(1.0, float(data.get("confidence", 0)))),
+            "cited": [str(c) for c in data.get("cited", [])],
+            "reasoning": str(data.get("reasoning", "")), "judge": judge_name}
+
+
+def failed(judge_name, e):
+    return {"verdict": "不确定", "confidence": 0.0, "cited": [],
+            "reasoning": f"LLM 研判失败：{type(e).__name__} {str(e)[:80]}", "judge": judge_name}
+
+
 class ClaudeJudge:
-    name = "claude"
+    """通过 Anthropic API 研判（需要 ANTHROPIC_API_KEY，按量计费）。"""
 
     def __init__(self, model=None):
         import anthropic
         self.client = anthropic.Anthropic()
         self.model = model or os.getenv("P2P_LLM_MODEL", "claude-sonnet-5-5")
 
+    @property
+    def name(self):
+        return f"api:{self.model}"
+
     def judge(self, hit, ctx, evidence):
-        ev = "\n".join(f"[{e['id']}] {e['title']}：{e['text']}" for e in evidence)
-        user = (f"规则：{hit['rule']}（{RULES[hit['rule']]['name']}）\n命中说明：{hit['detail']}\n"
-                f"涉及金额：{hit['amount']}\n单据链：{json.dumps(ctx['chain'], ensure_ascii=False)}\n"
-                f"特征：{json.dumps(ctx.get('features', {}), ensure_ascii=False)}\n\n检索到的制度条款：\n{ev}")
         try:
             msg = self.client.messages.create(model=self.model, max_tokens=400, system=SYSTEM,
-                                              messages=[{"role": "user", "content": user}])
+                                              messages=[{"role": "user", "content": build_prompt(hit, ctx, evidence)}])
             text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
-            data = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
-            return {"verdict": data.get("verdict", "不确定"),
-                    "confidence": float(data.get("confidence", 0)),
-                    "cited": list(data.get("cited", [])),
-                    "reasoning": data.get("reasoning", ""), "judge": f"claude:{self.model}"}
+            return parse_reply(text, self.name)
         except Exception as e:  # 调用或解析失败一律转人工
-            return {"verdict": "不确定", "confidence": 0.0, "cited": [],
-                    "reasoning": f"LLM 研判失败：{type(e).__name__}", "judge": f"claude:{self.model}"}
+            return failed(self.name, e)
+
+
+class ClaudeCodeJudge:
+    """通过本机 Claude Code CLI（claude -p）研判，使用已登录的订阅账户，无需 API Key。
+
+    model 可用别名（sonnet / opus / haiku）或完整模型名；为空则用 CLI 默认模型。
+    """
+
+    def __init__(self, model=None, cli=None, timeout=180):
+        self.model = model or os.getenv("P2P_CC_MODEL") or None
+        self.cli = cli or os.getenv("P2P_CLAUDE_CLI", "claude")
+        self.timeout = timeout
+        if not shutil.which(self.cli):
+            raise FileNotFoundError(f"找不到 Claude Code 命令行：{self.cli}")
+
+    @property
+    def name(self):
+        return f"claude-code:{self.model or 'default'}"
+
+    def judge(self, hit, ctx, evidence):
+        prompt = SYSTEM + "\n\n" + build_prompt(hit, ctx, evidence)
+        cmd = [self.cli, "-p", "--output-format", "json"]
+        if self.model:
+            cmd += ["--model", self.model]
+        try:
+            proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=self.timeout)
+            if proc.returncode != 0:
+                raise RuntimeError(proc.stderr.strip() or f"exit {proc.returncode}")
+            out = proc.stdout.strip()
+            try:  # --output-format json 外层包装：{"type":"result","result":"<模型回复>",...}
+                wrapper = json.loads(out)
+                if isinstance(wrapper, dict) and "result" in wrapper:
+                    if wrapper.get("is_error"):
+                        raise RuntimeError(str(wrapper["result"])[:120])
+                    out = wrapper["result"]
+            except json.JSONDecodeError:
+                pass
+            return parse_reply(out, self.name)
+        except Exception as e:
+            return failed(self.name, e)
 
 
 def get_judge(kind="auto"):
-    if kind == "heuristic":
+    """kind：auto | heuristic | api[:模型] | claude（同 api）| claude-code[:模型]"""
+    base, _, model = kind.partition(":")
+    if base == "heuristic":
         return HeuristicJudge()
-    if kind == "claude" or (kind == "auto" and os.getenv("ANTHROPIC_API_KEY")):
+    if base in ("api", "claude"):
+        return ClaudeJudge(model or None)
+    if base == "claude-code":
+        return ClaudeCodeJudge(model or None)
+    if os.getenv("ANTHROPIC_API_KEY"):
         try:
             return ClaudeJudge()
         except ImportError:
-            if kind == "claude":
-                raise
+            pass
     return HeuristicJudge()

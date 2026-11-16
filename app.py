@@ -32,8 +32,9 @@ vendors = {v["id"]: f"{v['id']} {v['name']}" for v in db.rows(conn, "SELECT * FR
 
 page = st.sidebar.radio("功能", ["录单（事前拦截）", "单据追溯", "巡检 Agent", "风险看板", "效果评估"])
 as_of = st.sidebar.date_input("看板日期（模拟逾期）", dt.date.today())
-judge_kind = st.sidebar.selectbox("研判器", ["auto", "heuristic", "claude"],
-                                  help="auto：有 ANTHROPIC_API_KEY 时用 Claude，否则用离线启发式研判")
+judge_kind = st.sidebar.selectbox(
+    "研判器", ["auto", "heuristic", "claude-code:sonnet", "claude-code:opus", "claude-code:haiku", "api"],
+    help="auto：有 ANTHROPIC_API_KEY 时走 API，否则离线启发式；claude-code：调用本机 Claude Code CLI（订阅账户）")
 if st.sidebar.button("重置演示数据"):
     conn.close()
     get_conn.clear()
@@ -135,8 +136,15 @@ elif page == "巡检 Agent":
     ver = c1.selectbox("规则版本", ["v2", "v1"])
     sel = c2.multiselect("规则", list(RULES), default=list(RULES), format_func=lambda r: f"{r} {RULES[r]['name']}")
     if st.button("运行巡检"):
-        with st.spinner("巡检中…"):
-            st.session_state["scan"] = pipeline.run(conn, ver, get_judge(judge_kind), sel)
+        try:
+            judge = get_judge(judge_kind)
+        except Exception as e:
+            st.error(f"研判器不可用：{e}")
+            st.stop()
+        if judge.name != "heuristic":
+            st.info("LLM 研判逐条调用，v2 约 85 条，需要几分钟；可先只勾选一两条规则试跑。")
+        with st.spinner(f"巡检中（{judge.name}）…"):
+            st.session_state["scan"] = pipeline.run(conn, ver, judge, sel)
     res = st.session_state.get("scan")
     if res:
         df = pd.DataFrame([{"规则": r["rule"], "名称": r["rule_name"], "单据": r["entity_id"], "金额": r["amount"],
