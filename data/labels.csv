@@ -1,0 +1,186 @@
+rule,entity_type,entity_id,kind,note
+R1_SOD,po,PO00001,anomaly,申请人自批
+R1_SOD,po,PO00002,anomaly,申请人自批
+R1_SOD,po,PO00003,anomaly,申请人自批
+R1_SOD,po,PO00004,anomaly,申请人自批
+R1_SOD,po,PO00005,anomaly,申请人自批
+R1_SOD,po,PO00006,anomaly,申请人自批
+R1_SOD,po,PO00007,anomaly,申请人自批
+R1_SOD,po,PO00008,anomaly,申请人自批
+R1_SOD,po,PO00009,anomaly,采购员自收货
+R1_SOD,po,PO00010,anomaly,采购员自收货
+R1_SOD,po,PO00011,anomaly,采购员自收货
+R1_SOD,po,PO00012,anomaly,采购员自收货
+R1_SOD,po,PO00013,anomaly,采购员自收货
+R1_SOD,po,PO00014,anomaly,采购员自收货
+R1_SOD,po,PO00015,anomaly,采购员自收货
+R1_SOD,po,PO00016,distractor,审批人提单、他人审批
+R1_SOD,po,PO00017,distractor,审批人提单、他人审批
+R1_SOD,po,PO00018,distractor,审批人提单、他人审批
+R1_SOD,po,PO00019,distractor,审批人提单、他人审批
+R1_SOD,po,PO00020,distractor,审批人提单、他人审批
+R1_SOD,po,PO00021,distractor,审批人提单、他人审批
+R1_SOD,po,PO00022,distractor,审批人提单、他人审批
+R1_SOD,po,PO00023,distractor,审批人提单、他人审批
+R1_SOD,po,PO00024,distractor,审批人提单、他人审批
+R1_SOD,po,PO00025,distractor,审批人提单、他人审批
+R2_AUTH,po,PO00026,anomaly,超权限审批
+R2_AUTH,po,PO00027,anomaly,超权限审批
+R2_AUTH,po,PO00028,anomaly,超权限审批
+R2_AUTH,po,PO00029,anomaly,超权限审批
+R2_AUTH,po,PO00030,anomaly,超权限审批
+R2_AUTH,po,PO00031,anomaly,超权限审批
+R2_AUTH,po,PO00032,anomaly,超权限审批
+R2_AUTH,po,PO00033,anomaly,超权限审批
+R2_AUTH,po,PO00034,anomaly,超权限审批
+R2_AUTH,po,PO00035,anomaly,超权限审批
+R2_AUTH,po,PO00036,anomaly,超权限审批
+R2_AUTH,po,PO00037,anomaly,超权限审批
+R2_AUTH,po,PO00038,anomaly,超权限审批
+R2_AUTH,po,PO00039,anomaly,超权限审批
+R2_AUTH,po,PO00040,anomaly,超权限审批
+R2_AUTH,po,PO00041,distractor,金额等于权限上限
+R2_AUTH,po,PO00042,distractor,金额等于权限上限
+R2_AUTH,po,PO00043,distractor,金额等于权限上限
+R2_AUTH,po,PO00044,distractor,金额等于权限上限
+R2_AUTH,po,PO00045,distractor,金额等于权限上限
+R2_AUTH,po,PO00046,distractor,金额等于权限上限
+R2_AUTH,po,PO00047,distractor,金额等于权限上限
+R2_AUTH,po,PO00048,distractor,金额等于权限上限
+R2_AUTH,po,PO00049,distractor,金额等于权限上限
+R2_AUTH,po,PO00050,distractor,金额等于权限上限
+R2_AUTH,po,PO00051,distractor,金额等于权限上限
+R2_AUTH,po,PO00052,distractor,金额等于权限上限
+R2_AUTH,po,PO00053,distractor,金额等于权限上限
+R2_AUTH,po,PO00054,distractor,金额等于权限上限
+R2_AUTH,po,PO00055,distractor,金额等于权限上限
+R3_SPLIT,po,PO00056,anomaly,7 日内拆单
+R3_SPLIT,po,PO00057,anomaly,7 日内拆单
+R3_SPLIT,po,PO00058,anomaly,7 日内拆单
+R3_SPLIT,po,PO00059,anomaly,7 日内拆单
+R3_SPLIT,po,PO00060,anomaly,7 日内拆单
+R3_SPLIT,po,PO00061,anomaly,7 日内拆单
+R3_SPLIT,po,PO00062,anomaly,7 日内拆单
+R3_SPLIT,po,PO00063,anomaly,7 日内拆单
+R3_SPLIT,po,PO00064,anomaly,7 日内拆单
+R3_SPLIT,po,PO00065,anomaly,7 日内拆单
+R3_SPLIT,po,PO00066,anomaly,7 日内拆单
+R3_SPLIT,po,PO00067,anomaly,7 日内拆单
+R3_SPLIT,po,PO00068,anomaly,难例：间隔 9 天的拆单，超出 7 日窗口
+R3_SPLIT,po,PO00069,anomaly,难例：间隔 9 天的拆单，超出 7 日窗口
+R3_SPLIT,po,PO00070,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00071,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00072,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00073,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00074,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00075,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00076,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00077,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00078,distractor,正常补货，间隔 >7 天
+R3_SPLIT,po,PO00079,distractor,正常补货，间隔 >7 天
+R4_DUPINV,invoice,IV00081,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00083,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00085,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00087,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00089,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00091,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00093,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00095,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00097,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00099,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00101,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00103,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00105,anomaly,同号不同写法重复入账
+R4_DUPINV,invoice,IV00107,anomaly,难例：号码加后缀且金额有尾差
+R4_DUPINV,invoice,IV00109,anomaly,难例：号码加后缀且金额有尾差
+R4_DUPINV,invoice,IV00110,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00111,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00112,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00113,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00114,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00115,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00116,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00117,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00118,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00119,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00120,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00121,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00122,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00123,distractor,月度固定服务费
+R4_DUPINV,invoice,IV00124,distractor,月度固定服务费
+R5_3WAY,invoice,IV00125,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00126,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00127,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00128,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00129,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00130,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00131,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00132,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00133,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00134,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00135,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00136,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00137,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00138,anomaly,发票超收货 >5%
+R5_3WAY,invoice,IV00140,anomaly,难例：补开第二张发票，累计超收货但单张不超
+R5_3WAY,invoice,IV00141,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00142,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00143,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00144,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00145,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00146,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00147,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00148,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00149,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00150,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00151,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00152,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00153,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00154,distractor,容差内差异（运费/尾差）
+R5_3WAY,invoice,IV00155,distractor,容差内差异（运费/尾差）
+R6_PAY,payment,PY00156,anomaly,付款早于收货
+R6_PAY,payment,PY00157,anomaly,付款早于收货
+R6_PAY,payment,PY00158,anomaly,付款早于收货
+R6_PAY,payment,PY00159,anomaly,付款早于收货
+R6_PAY,payment,PY00160,anomaly,付款早于收货
+R6_PAY,payment,PY00161,anomaly,付款早于收货
+R6_PAY,payment,PY00162,anomaly,付款早于收货
+R6_PAY,payment,PY00163,anomaly,付款早于收货
+R6_PAY,payment,PY00164,anomaly,付款早于收货
+R6_PAY,payment,PY00165,anomaly,付款早于收货
+R6_PAY,payment,PY00166,anomaly,无收货记录即付款
+R6_PAY,payment,PY00167,anomaly,无收货记录即付款
+R6_PAY,payment,PY00168,anomaly,无收货记录即付款
+R6_PAY,payment,PY00169,anomaly,无收货记录即付款
+R6_PAY,payment,PY00170,anomaly,无收货记录即付款
+R6_PAY,payment,PY00171,anomaly,无收货记录即付款
+R6_PAY,payment,PY00172,distractor,合同分期付款
+R6_PAY,payment,PY00173,distractor,合同分期付款
+R6_PAY,payment,PY00174,distractor,合同分期付款
+R6_PAY,payment,PY00175,distractor,合同分期付款
+R6_PAY,payment,PY00176,distractor,合同分期付款
+R6_PAY,payment,PY00177,distractor,合同分期付款
+R6_PAY,payment,PY00178,distractor,合同分期付款
+R6_PAY,payment,PY00179,distractor,合同分期付款
+R6_PAY,payment,PY00180,distractor,合同分期付款
+R6_PAY,payment,PY00181,distractor,合同分期付款
+R6_PAY,payment,PY00182,distractor,合同分期付款
+R6_PAY,payment,PY00183,distractor,合同分期付款
+R6_PAY,payment,PY00184,distractor,合同分期付款
+R6_PAY,payment,PY00185,distractor,合同分期付款
+R6_PAY,payment,PY00186,distractor,合同分期付款
+R6_PAY,payment,PY00187,distractor,合同分期付款
+R6_PAY,payment,PY00188,distractor,合同分期付款
+R6_PAY,payment,PY00189,distractor,合同分期付款
+R6_PAY,payment,PY00190,distractor,合同分期付款
+R6_PAY,payment,PY00191,distractor,合同分期付款
+R6_PAY,payment,PY00192,distractor,合同分期付款
+R6_PAY,payment,PY00193,distractor,合同分期付款
+R6_PAY,payment,PY00194,distractor,合同分期付款
+R6_PAY,payment,PY00195,distractor,合同分期付款
+R6_PAY,payment,PY00196,distractor,合同分期付款
+R6_PAY,payment,PY00197,distractor,合同分期付款
+R6_PAY,payment,PY00198,distractor,合同分期付款
+R6_PAY,payment,PY00199,distractor,合同分期付款
+R6_PAY,payment,PY00200,distractor,合同分期付款
+R6_PAY,payment,PY00201,distractor,合同分期付款
