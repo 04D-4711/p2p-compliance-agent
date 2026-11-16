@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 
 st_testing = pytest.importorskip("streamlit.testing.v1")
+# Windows 智能应用控制可能拦截 pyarrow 的 DLL；导入失败时跳过界面测试，而不是报错
+pytest.importorskip("pyarrow.compute", reason="pyarrow 无法加载（可能被 Windows 应用程序控制策略拦截）")
 
 
 @pytest.fixture()
