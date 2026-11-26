@@ -9,10 +9,18 @@
 - build_context：在 token 预算内组装提示词（先例、事实、压缩后的单据链）
 - llm_judge：调用研判器（Claude / Claude Code / 启发式）
 - route：人审路由
+
+LangGraph 不可用时（未安装，或 Windows 智能应用控制拦截了 xxhash 等依赖的 DLL），
+自动改用 agent/minigraph.py 里同样接口的顺序执行器，节点与边的定义不变。
 """
 from typing import Any, Optional, TypedDict
 
-from langgraph.graph import END, StateGraph
+try:
+    from langgraph.graph import END, StateGraph
+    BACKEND = "langgraph"
+except Exception:  # 未安装，或 Windows 智能应用控制拦截了依赖的 DLL（如 xxhash）
+    from .minigraph import END, StateGraph
+    BACKEND = "minigraph"
 
 from p2p import config, db
 from p2p.rules import RULES

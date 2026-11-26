@@ -213,3 +213,24 @@ def test_llm_receives_precedents_in_managed_prompt(conn, store):
     res = Agent(conn, j, store, explore=True).analyse(_r2_hits(conn)[0], today="2026-01-02")
     assert "历史人审先例" in j.prompts[0] and "权限为含" in j.prompts[0]
     assert res["route"] == "人工复核" and "无可靠先例" in res["route_reasons"]  # 只有 1 条先例，支持不足
+
+
+
+def test_minigraph_matches_langgraph(conn, store):
+    """LangGraph 不可用时的后备执行器，结果应与 LangGraph 一致。"""
+    from agent import graph as G, minigraph
+    for _ in range(3):
+        store.write_review("R2_AUTH", SIG_EQ, "不违规", today="2026-01-01")
+    hits = run_rules(conn, "v1", ["R2_AUTH", "R5_3WAY"])[:15]
+    real = Agent(conn, "heuristic", store, explore=True)
+    orig = (G.StateGraph, G.END)
+    G.StateGraph, G.END = minigraph.StateGraph, minigraph.END
+    try:
+        mini = Agent(conn, "heuristic", store, explore=True)
+    finally:
+        G.StateGraph, G.END = orig
+    assert type(mini.graph).__module__ == "agent.minigraph"
+    keys = ("verdict", "confidence", "route", "route_reasons", "judge", "prompt_tokens")
+    for h in hits:
+        a, b = real.analyse(h, today="2026-01-02"), mini.analyse(h, today="2026-01-02")
+        assert {k: a[k] for k in keys} == {k: b[k] for k in keys}

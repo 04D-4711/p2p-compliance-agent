@@ -90,6 +90,7 @@ python -m p2p.cli judge-eval --judges heuristic claude-code:sonnet claude-code:o
 | `'gbk' codec can't decode` | Windows 默认用 GBK 读写文本 | 每个新终端先运行 `$env:PYTHONUTF8 = "1"`，或运行一次 `setx PYTHONUTF8 1` 设为永久 |
 | `streamlit` 无法识别 | 虚拟环境的 Scripts 目录不在 PATH 上 | 改用 `python -m streamlit run app.py` |
 | `DLL load failed ... 应用程序控制策略已阻止此文件` | Windows 智能应用控制拦截了 pyarrow 的 DLL | 先试 `python -m pip install "pyarrow==24.*"`；不行就在 WSL 里运行界面。命令行功能不受影响，界面测试会自动跳过 |
+| `DLL load failed while importing _xxhash: 应用程序控制策略已阻止此文件` | 智能应用控制拦截了 langgraph 依赖的 xxhash | 不影响使用：`agent/graph.py` 检测到 LangGraph 无法导入时，自动改用 `agent/minigraph.py` 顺序执行同一张图（节点和边不变）；pytest 已禁用 langsmith 插件 |
 | `claude-code` 研判按 API 扣费 | Claude Code 登录的是 API 计费账户 | 在 Claude Code 里 `/login`，改用 claude.ai 账户登录 |
 
 ## 目录
