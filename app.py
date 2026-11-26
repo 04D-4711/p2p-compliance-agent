@@ -1,4 +1,4 @@
-"""Streamlit 界面：录单拦截 / 单据追溯 / 巡检 Agent / 风险看板 / 效果评估。
+"""Streamlit 界面：录单拦截 / 单据追溯 / 巡检 Agent / 风险看板 / 记忆库 / 效果评估。
 
 运行：streamlit run app.py
 """
@@ -10,6 +10,7 @@ import streamlit as st
 
 from agent import pipeline
 from agent.judge import get_judge
+from agent.memory import MemoryStore
 from evaluation.evaluate import evaluate, to_markdown
 from p2p import cases, config, db, precheck, seed
 from p2p.rules import RULES
@@ -30,7 +31,9 @@ users = db.rows(conn, "SELECT * FROM users ORDER BY id")
 uname = {u["id"]: f"{u['id']} {u['name']}（{u['role']}）" for u in users}
 vendors = {v["id"]: f"{v['id']} {v['name']}" for v in db.rows(conn, "SELECT * FROM vendors ORDER BY id")}
 
-page = st.sidebar.radio("功能", ["录单（事前拦截）", "单据追溯", "巡检 Agent", "风险看板", "效果评估"])
+page = st.sidebar.radio("功能", ["录单（事前拦截）", "单据追溯", "巡检 Agent", "风险看板", "记忆库", "效果评估"])
+use_memory = st.sidebar.toggle("启用长期记忆", value=True,
+                               help="研判前检索相似人审先例；相似先例一致时直接按记忆研判，不调用 LLM；没有可靠先例的命中转人工，人审结论写回记忆")
 as_of = st.sidebar.date_input("看板日期（模拟逾期）", dt.date.today())
 judge_kind = st.sidebar.selectbox(
     "研判器", ["auto", "heuristic", "claude-code:sonnet", "claude-code:opus", "claude-code:haiku", "api"],
@@ -144,16 +147,18 @@ elif page == "巡检 Agent":
         if judge.name != "heuristic":
             st.info("LLM 研判逐条调用，v2 约 85 条，需要几分钟；可先只勾选一两条规则试跑。")
         with st.spinner(f"巡检中（{judge.name}）…"):
-            st.session_state["scan"] = pipeline.run(conn, ver, judge, sel)
+            st.session_state["scan"] = pipeline.run(conn, ver, judge, sel, memory=use_memory, explore=use_memory)
     res = st.session_state.get("scan")
     if res:
         df = pd.DataFrame([{"规则": r["rule"], "名称": r["rule_name"], "单据": r["entity_id"], "金额": r["amount"],
                             "命中说明": r["detail"], "研判": r["verdict"], "置信度": r["confidence"],
                             "引用条款": ",".join(r["cited"]), "路由": r["route"],
-                            "转人工原因": "、".join(r["route_reasons"]), "研判器": r["judge"]} for r in res])
-        a, b, c = st.columns(3)
+                            "转人工原因": "、".join(r["route_reasons"]), "研判器": r["judge"],
+                            "记忆": r.get("memory_status"), "提示词 token": r.get("prompt_tokens")} for r in res])
+        a, b, c, d = st.columns(4)
         a.metric("命中", len(df)); b.metric("自动确认", int((df["路由"] == "自动确认").sum()))
         c.metric("转人工", int((df["路由"] == "人工复核").sum()))
+        d.metric("记忆排除", int((df["路由"] == "自动排除").sum()))
         st.dataframe(df, hide_index=True, use_container_width=True)
         if st.button("写入风险看板"):
             n = cases.sync(conn, res)
@@ -168,10 +173,10 @@ elif page == "风险看板":
     else:
         df = pd.DataFrame(allc)
         od = {c["id"] for c in cases.overdue(conn, as_of)}
-        cols = st.columns(6)
-        for col, s in zip(cols, ["待确认", "整改中", "待复测", "已关闭", "误报关闭"]):
+        cols = st.columns(7)
+        for col, s in zip(cols, ["待确认", "整改中", "待复测", "已关闭", "误报关闭", "自动排除"]):
             col.metric(s, int((df["status"] == s).sum()))
-        cols[5].metric("逾期", len(od))
+        cols[6].metric("逾期", len(od))
         if od:
             st.warning(f"逾期提醒：{len(od)} 个案件超过整改截止日（看板日期 {as_of}）")
         st.bar_chart(df.groupby(["rule", "status"]).size().unstack(fill_value=0))
@@ -186,12 +191,19 @@ elif page == "风险看板":
         st.write(c["detail"]); st.caption(f"研判：{c['verdict']}（{c['confidence']}）{c['reasoning']}")
         for e in json.loads(c["evidence"]):
             st.caption(f"{e['id']} {e['title']}：{e['text']}")
+        refs = json.loads(c.get("memory_refs") or "[]")
+        if refs:
+            st.caption(f"研判时参考的记忆先例：{', '.join(f'#{x}' for x in refs)}")
         b1, b2, b3, b4 = st.columns(4)
-        if c["status"] == "待确认":
-            if b1.button("确认异常"):
-                cases.confirm(conn, cid); st.rerun()
-            if b2.button("判定误报"):
-                cases.false_positive(conn, cid); st.rerun()
+        if c["status"] in ("待确认", "自动排除"):
+            note = st.text_input("复核意见（会写入记忆，供后续相似案件参考）", "")
+            fact = st.text_input("登记供应商事实（可选，如“月度固定服务费合同”）", "")
+            if b1.button("确认异常" if c["status"] == "待确认" else "纠正：确认异常"):
+                cases.confirm(conn, cid, note or "人工复核确认"); st.rerun()
+            if c["status"] == "待确认" and b2.button("判定误报"):
+                vid = db.chain_for(conn, c["entity_type"], c["entity_id"])["po"]["vendor_id"]
+                cases.false_positive(conn, cid, note or "人工复核判定误报",
+                                     fact=("vendor", vid, fact) if fact else None); st.rerun()
         if c["status"] == "整改中":
             owner = b1.text_input("责任方", c["owner"])
             due = b2.date_input("截止日", dt.date.fromisoformat(c["due_date"]))
@@ -206,6 +218,33 @@ elif page == "风险看板":
                            file_name=f"case_{cid}_evidence.zip")
         st.subheader("处理时间线")
         st.dataframe(pd.DataFrame(cases.events(conn, cid)), hide_index=True, use_container_width=True)
+
+# ------------------------------------------------------------------ 记忆库
+elif page == "记忆库":
+    st.header("长期记忆：人审先例与实体事实")
+    st.caption("只有人工复核结论会写入记忆；相同结论的近似先例合并累加支持数；制度文本变化后旧记忆自动失效。")
+    store = MemoryStore(conn)
+    stale = store.mark_stale()
+    if stale:
+        st.warning(f"制度文本已变化，{stale} 条旧记忆标为失效")
+    stats = pd.DataFrame(store.stats())
+    if stats.empty:
+        st.info("暂无记忆。到风险看板复核“待确认”案件后，结论会写入这里。")
+    else:
+        st.dataframe(stats, hide_index=True)
+        mem = store.list()
+        st.dataframe(pd.DataFrame([{"id": m["id"], "类型": m["kind"], "规则": m["rule"],
+                                    "范围": f"{m['scope_type']} {m['scope_id']}", "特征签名": json.dumps(m["signature"], ensure_ascii=False),
+                                    "结论": m["verdict"], "支持数": m["support"], "复核意见": m["note"],
+                                    "来源": "、".join(m["refs"]), "更新": m["updated_at"], "被引用": m["use_count"]}
+                                   for m in mem]), hide_index=True, use_container_width=True)
+        if mem:
+            mid = st.selectbox("选择记忆", [m["id"] for m in mem])
+            reason = st.text_input("撤销原因", "复核结论有误")
+            if st.button("撤销该记忆"):
+                store.revoke(mid, reason); st.rerun()
+        st.subheader("记忆变更日志")
+        st.dataframe(pd.DataFrame(store.events()), hide_index=True, use_container_width=True)
 
 # ------------------------------------------------------------------ 评估
 else:

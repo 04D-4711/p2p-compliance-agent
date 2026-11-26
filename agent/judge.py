@@ -16,14 +16,15 @@ SYSTEM = """你是企业财务内控审计助手，负责研判采购到付款�
 要求：
 1. 只能依据给定的单据信息与“检索到的制度条款”作出判断，只能引用其中出现的条款编号；
 2. 证据不足或存在合理例外（如合同预付款、分期付款、容差内差异）时，降低置信度或判为“不确定”；
-3. 只输出一个 JSON 对象，不要输出其他内容：
+3. 如提供了“历史人审先例”和“实体事实”，可参考相似先例的结论，但本单据事实与先例不一致时以单据和条款为准；
+4. 只输出一个 JSON 对象，不要输出其他内容：
 {"verdict": "违规" | "不违规" | "不确定", "confidence": 0~1 的小数, "cited": ["P-xx"], "reasoning": "不超过 80 字的中文理由"}"""
 
 
 class HeuristicJudge:
     name = "heuristic"
 
-    def judge(self, hit, ctx, evidence):
+    def judge(self, hit, ctx, evidence, prompt=None):
         rule, f = hit["rule"], ctx.get("features", {})
         conf = {"R1_SOD": 0.95, "R2_AUTH": 0.92, "R3_SPLIT": 0.85,
                 "R4_DUPINV": 0.93, "R5_3WAY": 0.9, "R6_PAY": 0.9}[rule]
@@ -44,10 +45,9 @@ class HeuristicJudge:
 
 
 def build_prompt(hit, ctx, evidence):
-    ev = "\n".join(f"[{e['id']}] {e['title']}：{e['text']}" for e in evidence)
-    return (f"规则：{hit['rule']}（{RULES[hit['rule']]['name']}）\n命中说明：{hit['detail']}\n"
-            f"涉及金额：{hit['amount']}\n单据链：{json.dumps(ctx['chain'], ensure_ascii=False)}\n"
-            f"特征：{json.dumps(ctx.get('features', {}), ensure_ascii=False)}\n\n检索到的制度条款：\n{ev}")
+    """未经上下文管理的提示词（完整单据链 JSON），仅在调用方没有传入 prompt 时使用。"""
+    from .context import raw_prompt
+    return raw_prompt(hit, ctx, evidence)
 
 
 def parse_reply(text, judge_name):
@@ -78,10 +78,10 @@ class ClaudeJudge:
     def name(self):
         return f"api:{self.model}"
 
-    def judge(self, hit, ctx, evidence):
+    def judge(self, hit, ctx, evidence, prompt=None):
         try:
             msg = self.client.messages.create(model=self.model, max_tokens=400, system=SYSTEM,
-                                              messages=[{"role": "user", "content": build_prompt(hit, ctx, evidence)}])
+                                              messages=[{"role": "user", "content": prompt or build_prompt(hit, ctx, evidence)}])
             text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
             return parse_reply(text, self.name)
         except Exception as e:  # 调用或解析失败一律转人工
@@ -107,8 +107,8 @@ class ClaudeCodeJudge:
     def name(self):
         return f"claude-code:{self.model or 'default'}"
 
-    def judge(self, hit, ctx, evidence):
-        prompt = SYSTEM + "\n\n" + build_prompt(hit, ctx, evidence)
+    def judge(self, hit, ctx, evidence, prompt=None):
+        prompt = SYSTEM + "\n\n" + (prompt or build_prompt(hit, ctx, evidence))
         cmd = [self.path, "-p", "--output-format", "json"]
         if self.model:
             cmd += ["--model", self.model]

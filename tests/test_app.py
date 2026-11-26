@@ -39,6 +39,7 @@ def test_po_blocked_in_ui(app):
 
 
 def test_scan_to_closed(app):
+    app.sidebar.toggle[0].set_value(False).run()   # 不启用记忆：v2 命中大多自动确认，直接走整改
     _goto(app, "巡检 Agent")
     [b for b in app.button if b.label == "运行巡检"][0].click().run()
     assert app.dataframe
@@ -49,3 +50,17 @@ def test_scan_to_closed(app):
     [b for b in app.button if b.label == "执行整改（演示）"][0].click().run()
     [b for b in app.button if b.label == "复测"][0].click().run()
     assert not app.exception
+
+
+def test_review_writes_memory_page(app):
+    _goto(app, "巡检 Agent")
+    [s for s in app.selectbox if s.label == "规则版本"][0].set_value("v1").run()
+    [b for b in app.button if b.label == "运行巡检"][0].click().run()
+    [b for b in app.button if b.label == "写入风险看板"][0].click().run()
+    _goto(app, "风险看板")
+    app.multiselect[0].set_value(["待确认"]).run()
+    [t for t in app.text_input if t.label.startswith("复核意见")][0].set_value("测试复核意见").run()
+    [b for b in app.button if b.label == "判定误报"][0].click().run()
+    assert not app.exception
+    _goto(app, "记忆库")
+    assert app.dataframe and not app.exception

@@ -64,7 +64,16 @@ def connect(path=None):
     conn.create_function("norm_inv", 1, norm_inv, deterministic=True)
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+def _migrate(conn):
+    """给旧数据库补上新增列（记忆相关）。"""
+    have = {r[1] for r in conn.execute("PRAGMA table_info(cases)").fetchall()}
+    for col in ("features", "memory_refs", "memory_ids"):
+        if col not in have:
+            conn.execute(f"ALTER TABLE cases ADD COLUMN {col} TEXT")
 
 
 @contextmanager

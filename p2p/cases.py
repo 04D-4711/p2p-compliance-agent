@@ -36,15 +36,18 @@ def sync(conn, results, today=None):
     created = 0
     with db.tx(conn):
         for r in results:
-            status = "整改中" if r["route"] == "自动确认" else "待确认"
+            status = {"自动确认": "整改中", "自动排除": "自动排除"}.get(r["route"], "待确认")
             cur = conn.execute(
                 """INSERT OR IGNORE INTO cases(rule, entity_type, entity_id, amount, detail, status, route,
-                   route_reasons, verdict, confidence, cited, evidence, reasoning, judge, owner, created_at, due_date)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                   route_reasons, verdict, confidence, cited, evidence, reasoning, judge, owner, created_at, due_date,
+                   features, memory_refs)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (r["rule"], r["entity_type"], r["entity_id"], r["amount"], r["detail"], status, r["route"],
                  "、".join(r["route_reasons"]), r["verdict"], r["confidence"], json.dumps(r["cited"]),
                  json.dumps(r["evidence"], ensure_ascii=False), r["reasoning"], r["judge"], OWNER[r["rule"]],
-                 today.isoformat(), (today + dt.timedelta(days=config.DUE_DAYS)).isoformat()))
+                 today.isoformat(), (today + dt.timedelta(days=config.DUE_DAYS)).isoformat(),
+                 json.dumps(r.get("features", {}), ensure_ascii=False),
+                 json.dumps(r.get("memory_refs", []))))
             if cur.rowcount:
                 cid = cur.lastrowid
                 created += 1
@@ -53,6 +56,8 @@ def sync(conn, results, today=None):
                       f"路由：{r['route']} {'、'.join(r['route_reasons'])}")
                 if status == "整改中":
                     event(conn, cid, "整改推进", f"自动派发至 {OWNER[r['rule']]}")
+                elif status == "自动排除":
+                    event(conn, cid, "异常确认", "依据人审先例自动排除，可人工纠正", r["reasoning"])
     return created
 
 
@@ -61,16 +66,37 @@ def _set(conn, cid, **kw):
     conn.execute(f"UPDATE cases SET {sets} WHERE id=?", [*kw.values(), cid])
 
 
-def confirm(conn, cid, note="人工复核确认"):
+def remember(conn, cid, verdict, note="", fact=None, today=None):
+    """把人工复核结论写入长期记忆（只有人审结论会写入）。fact=(scope_type, scope_id, 文本)。"""
+    from agent.memory import MemoryStore
+    c = get(conn, cid)
+    if not c or not c.get("features"):
+        return None
+    res = MemoryStore(conn).write_review(c["rule"], json.loads(c["features"]), verdict, note,
+                                         ref=f"case#{cid}", today=today, fact=fact)
+    ids = json.loads(c.get("memory_ids") or "[]") + [res["id"]]
+    _set(conn, cid, memory_ids=json.dumps(ids))
+    event(conn, cid, "证据沉淀", f"人审结论写入记忆 #{res['id']}（{'合并' if res['action'] == 'merge' else '新增'}）",
+          f"与 {res['conflicts']} 条相反先例近似" if res["conflicts"] else "")
+    return res
+
+
+def confirm(conn, cid, note="人工复核确认", learn=True):
+    """人工确认异常；也用于纠正被记忆自动排除的案件。"""
     with db.tx(conn):
-        _set(conn, cid, status="整改中")
-        event(conn, cid, "异常确认", "人工确认异常", note)
+        corrected = get(conn, cid)["status"] == "自动排除"
+        _set(conn, cid, status="整改中", closed_at=None)
+        event(conn, cid, "异常确认", "纠正自动排除：人工确认异常" if corrected else "人工确认异常", note)
+        if learn:
+            remember(conn, cid, "违规", note if note != "人工复核确认" else "")
 
 
-def false_positive(conn, cid, note="人工复核判定误报"):
+def false_positive(conn, cid, note="人工复核判定误报", learn=True, fact=None):
     with db.tx(conn):
         _set(conn, cid, status="误报关闭", closed_at=_now())
         event(conn, cid, "异常确认", "判定误报并关闭", note)
+        if learn:
+            remember(conn, cid, "不违规", note if note != "人工复核判定误报" else "", fact=fact)
 
 
 def assign(conn, cid, owner, due_date=None):
